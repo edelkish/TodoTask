@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Data;
 using TodoApi.Endpoints;
+using Scalar.AspNetCore;
 using TodoApi.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +30,7 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
     app.MapOpenApi();
+    app.MapScalarApiReference(o => o.WithTitle("TodoTask API"));
 }
 
 app.UseExceptionHandler();
