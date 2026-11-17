@@ -20,7 +20,7 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
             {
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Petición no válida",
-                Detail = "El cuerpo de la petición no es válido (JSON mal formado o valor de enumeración desconocido)."
+                Detail = "La petición no es válida (JSON mal formado o valor no reconocido, por ejemplo un estado desconocido)."
             };
         }
         else
