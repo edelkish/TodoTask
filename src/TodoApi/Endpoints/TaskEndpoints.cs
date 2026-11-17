@@ -11,7 +11,8 @@ public static class TaskEndpoints
 {
     public static IEndpointRouteBuilder MapTaskEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/tasks").WithTags("Tasks");
+        var group = app.MapGroup("/api/tasks").WithTags("Tasks")
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         group.MapGet("/", ListTasks).WithName("ListTasks")
             .WithSummary("Lista tareas")
