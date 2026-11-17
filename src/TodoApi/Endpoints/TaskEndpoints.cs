@@ -46,15 +46,25 @@ public static class TaskEndpoints
     /// </summary>
     private static async Task<Results<Ok<PagedResult<TaskResponse>>, ValidationProblem>> ListTasks(
         AppDbContext db, CancellationToken ct,
-        TaskItemStatus? status = null, string? assignee = null, int page = 1, int pageSize = 20)
+        string? status = null, string? assignee = null, int page = 1, int pageSize = 20)
     {
         var errors = new Dictionary<string, string[]>();
+        // El estado se interpreta a mano: el binding automático de enums ignora en silencio los valores
+        // desconocidos cuando no está en Development, devolviendo todas las tareas en vez de un 400.
+        TaskItemStatus? statusFilter = null;
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            if (int.TryParse(status, out _) || !Enum.TryParse<TaskItemStatus>(status.Trim(), ignoreCase: true, out var parsed))
+                errors["status"] = [$"status debe ser uno de: {string.Join(", ", Enum.GetNames<TaskItemStatus>())}."];
+            else
+                statusFilter = parsed;
+        }
         if (page < 1) errors["page"] = ["page debe ser mayor o igual que 1."];
         if (pageSize is < 1 or > MaxPageSize) errors["pageSize"] = [$"pageSize debe estar entre 1 y {MaxPageSize}."];
         if (errors.Count > 0) return TypedResults.ValidationProblem(errors);
 
         var query = db.Tasks.AsNoTracking();
-        if (status is { } s) query = query.Where(t => t.Status == s);
+        if (statusFilter is { } s) query = query.Where(t => t.Status == s);
         if (!string.IsNullOrWhiteSpace(assignee))
         {
             var who = assignee.Trim().ToLower();
