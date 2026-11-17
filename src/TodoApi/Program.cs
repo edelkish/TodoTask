@@ -31,6 +31,9 @@ if (app.Environment.IsDevelopment())
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
     app.MapOpenApi();
     app.MapScalarApiReference(o => o.WithTitle("TodoTask API"));
+
+    // Al abrir la raíz en el navegador (http://localhost:5204/) se va directo a la interfaz.
+    app.MapGet("/", () => Results.Redirect("/scalar/v1")).ExcludeFromDescription();
 }
 
 app.UseExceptionHandler();
