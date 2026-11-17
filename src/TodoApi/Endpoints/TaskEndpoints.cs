@@ -15,6 +15,8 @@ public static class TaskEndpoints
         group.MapGet("/", ListTasks).WithName("ListTasks");
         group.MapPost("/", CreateTask).WithName("CreateTask");
         group.MapGet("/{id:int}", GetTaskById).WithName("GetTaskById");
+        group.MapPut("/{id:int}", UpdateTask).WithName("UpdateTask");
+        group.MapDelete("/{id:int}", DeleteTask).WithName("DeleteTask");
 
         return app;
     }
@@ -70,5 +72,25 @@ public static class TaskEndpoints
 
         return TypedResults.Ok(new PagedResult<TaskResponse>(
             items.Select(t => t.ToResponse()).ToList(), page, pageSize, total));
+    }
+
+    /// <summary>Reemplaza todos los campos editables de la tarea. 404 si no existe.</summary>
+    private static async Task<Results<Ok<TaskResponse>, NotFound>> UpdateTask(
+        int id, UpdateTaskRequest request, AppDbContext db, TimeProvider clock, CancellationToken ct)
+    {
+        var task = await db.Tasks.FirstOrDefaultAsync(t => t.Id == id, ct);
+        if (task is null) return TypedResults.NotFound();
+
+        request.Apply(task, clock.GetUtcNow().UtcDateTime);
+        await db.SaveChangesAsync(ct);
+        return TypedResults.Ok(task.ToResponse());
+    }
+
+    /// <summary>Elimina la tarea. 204 si se borró, 404 si no existe.</summary>
+    private static async Task<Results<NoContent, NotFound>> DeleteTask(
+        int id, AppDbContext db, CancellationToken ct)
+    {
+        var deleted = await db.Tasks.Where(t => t.Id == id).ExecuteDeleteAsync(ct);
+        return deleted == 0 ? TypedResults.NotFound() : TypedResults.NoContent();
     }
 }
