@@ -20,7 +20,11 @@ dotnet ef database update --project src/TodoApi
 dotnet ef migrations add NombreMigracion --project src/TodoApi --output-dir Data/Migrations
 ```
 
-En Development la especificación OpenAPI está en `http://localhost:5204/openapi/v1.json`.
+### Interfaz visual (Scalar)
+
+Con la API en marcha, abre **`http://localhost:5204/scalar/v1`** (`dotnet run` con el perfil `http` la abre sola). Es una referencia interactiva de los cinco endpoints, con sus parámetros, esquemas y respuestas, y permite ejecutar cada petición con "Test Request". Se genera a partir de la especificación OpenAPI (`http://localhost:5204/openapi/v1.json`).
+
+Ambas rutas solo existen en entorno **Development**; en otros entornos devuelven 404.
 
 ### Endpoints
 
@@ -88,6 +92,8 @@ Trabajé con Claude Code (Claude Sonnet 5.5) dentro de VS Code, primero en modo 
 - Un plan para el proyecto a partir de los requisitos; aprobé el plan (con el remoto `https://github.com/edelkish/TodoTask.git` añadido) antes de que escribiera código.
 - Implementarlo con reglas de proceso mías: **commits por tarea y no uno solo**, **mensajes en español y coherentes con lo implementado**, y **una rama por tarea desde `main`, fusionada de vuelta a `main`**. Esas dos últimas las fui añadiendo durante la ejecución y se aplicaron desde ese punto (el commit inicial del esqueleto quedó directamente en `main`).
 
+- Una interfaz visual antes de hacer push: me propuso Scalar, Swagger UI o un panel propio; elegí **Scalar sobre el OpenAPI existente** por ser lo más barato. Lo implementó en tres tareas, cada una con su rama y commit.
+
 **Qué aceptó/propuso y di por bueno**
 - Arquitectura (Minimal APIs, DTOs, `ProblemDetails`, estado como texto, paginación con tope), la secuencia de tareas y la estrategia de tests de integración contra una base SQLite real.
 
@@ -96,6 +102,6 @@ Trabajé con Claude Code (Claude Sonnet 5.5) dentro de VS Code, primero en modo 
 2. Las fechas leídas de SQLite perdían la `Z` (zona UTC). Se añadieron convertidores.
 3. **Bug de fondo:** fuera de Development, `?status=Foo` se **ignoraba en silencio** y se devolvían todas las tareas (en Development daba 400, lo que lo ocultó). Lo destapó un test que falló; se corrigió interpretando el estado a mano y se dejó el test como regresión.
 4. Mi helper de tests enviaba `"status": null` y la API respondía 400 con razón; se corrigió el helper, no la API.
-5. Detalles de herramientas: una versión con comodín en `dotnet add package` se colgó (se usó versión explícita), un servidor de prueba dejó el `.exe` bloqueado al recompilar y un mensaje de error hablaba del "cuerpo" cuando el fallo era de la query.
+5. Detalles de herramientas: una versión con comodín en `dotnet add package` se colgó (se usó versión explícita), un servidor de prueba dejó el `.exe` bloqueado al recompilar (una vez más, y entonces las comprobaciones se hicieron con el binario viejo; se repitieron tras cerrarlo), una rama se creó antes de fusionar la anterior a `main` y hubo que reordenarla y un mensaje de error hablaba del "cuerpo" cuando el fallo era de la query.
 
 **Lección:** el código generado compiló a la primera casi siempre, pero los fallos reales estaban en el comportamiento (códigos HTTP y entornos distintos). Por eso cada endpoint se probó en vivo con `curl` antes de hacer commit, y los tests se ejecutan contra la API real.
