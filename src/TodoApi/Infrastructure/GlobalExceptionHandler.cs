@@ -3,22 +3,40 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace TodoApi.Infrastructure;
 
-/// <summary>Convierte cualquier excepción no controlada en un 500 ProblemDetails sin filtrar detalles internos.</summary>
+/// <summary>
+/// Traduce excepciones a ProblemDetails: las peticiones mal formadas (JSON inválido, enum desconocido...)
+/// dan 400 y cualquier otra excepción no controlada un 500 genérico sin filtrar detalles internos.
+/// </summary>
 public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
 {
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
-        logger.LogError(exception, "Error no controlado en {Method} {Path}",
-            httpContext.Request.Method, httpContext.Request.Path);
+        ProblemDetails problem;
 
-        httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        await httpContext.Response.WriteAsJsonAsync(new ProblemDetails
+        if (exception is BadHttpRequestException)
         {
-            Status = StatusCodes.Status500InternalServerError,
-            Title = "Error interno del servidor",
-            Detail = "Ocurrió un error inesperado. Inténtalo de nuevo más tarde."
-        }, cancellationToken);
+            problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Petición no válida",
+                Detail = "El cuerpo de la petición no es válido (JSON mal formado o valor de enumeración desconocido)."
+            };
+        }
+        else
+        {
+            logger.LogError(exception, "Error no controlado en {Method} {Path}",
+                httpContext.Request.Method, httpContext.Request.Path);
+            problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Error interno del servidor",
+                Detail = "Ocurrió un error inesperado. Inténtalo de nuevo más tarde."
+            };
+        }
+
+        httpContext.Response.StatusCode = problem.Status!.Value;
+        await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
         return true;
     }
 }
