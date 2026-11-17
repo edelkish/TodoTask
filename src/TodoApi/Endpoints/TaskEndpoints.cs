@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Data;
@@ -12,11 +13,29 @@ public static class TaskEndpoints
     {
         var group = app.MapGroup("/api/tasks").WithTags("Tasks");
 
-        group.MapGet("/", ListTasks).WithName("ListTasks");
-        group.MapPost("/", CreateTask).WithName("CreateTask");
-        group.MapGet("/{id:int}", GetTaskById).WithName("GetTaskById");
-        group.MapPut("/{id:int}", UpdateTask).WithName("UpdateTask");
-        group.MapDelete("/{id:int}", DeleteTask).WithName("DeleteTask");
+        group.MapGet("/", ListTasks).WithName("ListTasks")
+            .WithSummary("Lista tareas")
+            .WithDescription("Devuelve las tareas paginadas, con filtros opcionales por estado y responsable. "
+                + "Orden: fecha límite ascendente (las tareas sin fecha al final) y después Id.");
+
+        group.MapPost("/", CreateTask).WithName("CreateTask")
+            .WithSummary("Crea una tarea")
+            .WithDescription("Título y responsable son obligatorios. Si no se indica estado, se crea como Pending. "
+                + "La fecha límite no puede estar en el pasado. Devuelve 201 con la cabecera Location.")
+            .ProducesValidationProblem();
+
+        group.MapGet("/{id:int}", GetTaskById).WithName("GetTaskById")
+            .WithSummary("Obtiene una tarea por id")
+            .WithDescription("Devuelve 404 si la tarea no existe.");
+
+        group.MapPut("/{id:int}", UpdateTask).WithName("UpdateTask")
+            .WithSummary("Edita una tarea")
+            .WithDescription("Reemplaza todos los campos editables. Permite fechas límite pasadas. Devuelve 404 si no existe.")
+            .ProducesValidationProblem();
+
+        group.MapDelete("/{id:int}", DeleteTask).WithName("DeleteTask")
+            .WithSummary("Borra una tarea")
+            .WithDescription("Devuelve 204 si se borró y 404 si la tarea no existe.");
 
         return app;
     }
@@ -46,7 +65,10 @@ public static class TaskEndpoints
     /// </summary>
     private static async Task<Results<Ok<PagedResult<TaskResponse>>, ValidationProblem>> ListTasks(
         AppDbContext db, CancellationToken ct,
-        string? status = null, string? assignee = null, int page = 1, int pageSize = 20)
+        [Description("Filtra por estado: Pending, InProgress o Done (sin distinguir mayúsculas).")] string? status = null,
+        [Description("Filtra por responsable (sin distinguir mayúsculas).")] string? assignee = null,
+        [Description("Número de página, a partir de 1.")] int page = 1,
+        [Description("Tamaño de página, entre 1 y 100.")] int pageSize = 20)
     {
         var errors = new Dictionary<string, string[]>();
         // El estado se interpreta a mano: el binding automático de enums ignora en silencio los valores
