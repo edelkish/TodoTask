@@ -9,7 +9,8 @@ internal static class TestHelpers
 {
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
-        Converters = { new JsonStringEnumConverter() }
+        Converters = { new JsonStringEnumConverter() },
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
     public static string FutureDate() => DateTime.UtcNow.AddDays(30).ToString("O");
