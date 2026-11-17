@@ -30,11 +30,11 @@ Ambas rutas solo existen en entorno **Development**; en otros entornos devuelven
 
 | Método | Ruta | Descripción | Respuestas |
 |---|---|---|---|
-| `POST` | `/api/tasks` | Crear tarea | 201 (+`Location`), 400 |
-| `GET` | `/api/tasks` | Listar con filtros y paginación | 200, 400 |
-| `GET` | `/api/tasks/{id}` | Ver una tarea | 200, 404 |
-| `PUT` | `/api/tasks/{id}` | Editar (reemplazo completo) | 200, 400, 404 |
-| `DELETE` | `/api/tasks/{id}` | Borrar | 204, 404 |
+| `POST` | `/api/tasks` | Crear tarea | 201 (+`Location`), 400, 500 |
+| `GET` | `/api/tasks` | Listar con filtros y paginación | 200, 400, 500 |
+| `GET` | `/api/tasks/{id}` | Ver una tarea | 200, 404, 500 |
+| `PUT` | `/api/tasks/{id}` | Editar (reemplazo completo) | 200, 400, 404, 500 |
+| `DELETE` | `/api/tasks/{id}` | Borrar | 204, 404, 500 |
 
 Parámetros del listado: `status` (`Pending`, `InProgress`, `Done`), `assignee` (sin distinguir mayúsculas), `page` (≥ 1, por defecto 1) y `pageSize` (1–100, por defecto 20).
 
@@ -64,13 +64,13 @@ Los errores usan `ProblemDetails` (RFC 7807, `application/problem+json`). Los de
 - **Minimal APIs + un solo proyecto de API.** El dominio es pequeño; separar en capas (Clean Architecture, repositorios) añadiría ficheros sin aportar claridad. Los endpoints viven en `Endpoints/TaskEndpoints.cs`.
 - **DTOs separados de la entidad** (`CreateTaskRequest`, `UpdateTaskRequest`, `TaskResponse`, `PagedResult<T>`): el contrato HTTP no queda atado al modelo de datos.
 - **Validación con DataAnnotations + `AddValidation()`** (nativo de .NET 10) en lugar de FluentValidation: menos dependencias y suficiente para estas reglas (título y responsable obligatorios, longitudes máximas, fecha límite no pasada al **crear**). Al **editar** se permiten fechas pasadas, para poder tocar tareas ya vencidas.
-- **Errores coherentes:** 201 con `Location`, 204 al borrar, 400 en validación o petición mal formada, 404 si no existe, 500 genérico sin filtrar detalles internos (`IExceptionHandler`).
+- **Errores coherentes:** 201 con `Location`, 204 al borrar, 400 en validación o petición mal formada, 404 si no existe, 500 genérico en `application/problem+json` sin filtrar detalles internos (`IExceptionHandler`); hay un test que provoca un fallo real de base de datos y comprueba que no se filtra ni el mensaje ni el stack trace.
 - **`PUT` como reemplazo completo** (no `PATCH`): más simple y predecible para el cliente.
 - **Estado como texto** en JSON y en base de datos (`"InProgress"`), legible y robusto frente a reordenar el enum. Valores numéricos o desconocidos se rechazan.
 - **Fechas siempre en UTC.** SQLite no guarda zona horaria, así que un convertidor las marca como UTC al leer (se serializan con `Z`).
 - **Paginación y filtros:** `pageSize` máximo 100, orden estable (fecha límite ascendente con las tareas sin fecha al final, y luego `Id`). Índices en `Status` y `Assignee`.
 - **Migraciones EF Core** en `Data/Migrations`, aplicadas automáticamente solo en Development. En otros entornos deben aplicarse de forma explícita (`dotnet ef database update`).
-- **Tests de integración** con `WebApplicationFactory` contra la API real y una base SQLite temporal creada con las migraciones: validan el comportamiento HTTP de extremo a extremo y de paso que el esquema migrado funciona. Hay 20 casos (creación, validaciones, 404, filtros, paginación, orden, edición y borrado).
+- **Tests de integración** con `WebApplicationFactory` contra la API real y una base SQLite temporal creada con las migraciones: validan el comportamiento HTTP de extremo a extremo y de paso que el esquema migrado funciona. Hay 21 casos (creación, validaciones, 404, filtros, paginación, orden, edición, borrado y error 500).
 - **Flujo de git:** una rama por tarea (`feat/…`, `test/…`, `fix/…`, `docs/…`) a partir de `main`, fusionada con `--no-ff` para conservar el historial por tarea. Commits en español, siguiendo Conventional Commits.
 
 ## Qué haría con más tiempo
@@ -102,6 +102,7 @@ Trabajé con Claude Code (Claude Sonnet 5.5) dentro de VS Code, primero en modo 
 2. Las fechas leídas de SQLite perdían la `Z` (zona UTC). Se añadieron convertidores.
 3. **Bug de fondo:** fuera de Development, `?status=Foo` se **ignoraba en silencio** y se devolvían todas las tareas (en Development daba 400, lo que lo ocultó). Lo destapó un test que falló; se corrigió interpretando el estado a mano y se dejó el test como regresión.
 4. Mi helper de tests enviaba `"status": null` y la API respondía 400 con razón; se corrigió el helper, no la API.
-5. Detalles de herramientas: una versión con comodín en `dotnet add package` se colgó (se usó versión explícita), un servidor de prueba dejó el `.exe` bloqueado al recompilar (una vez más, y entonces las comprobaciones se hicieron con el binario viejo; se repitieron tras cerrarlo), una rama se creó antes de fusionar la anterior a `main` y hubo que reordenarla y un mensaje de error hablaba del "cuerpo" cuando el fallo era de la query.
+5. Al preguntarte si se había considerado el 500, resultó que el manejador existía pero no estaba probado ni declarado. Al escribir el test apareció un fallo real: los errores 400/500 del manejador salían como `application/json` y no como `application/problem+json`. Se corrigió, se declaró el 500 en el OpenAPI y se documentó.
+6. Detalles de herramientas: una versión con comodín en `dotnet add package` se colgó (se usó versión explícita), un servidor de prueba dejó el `.exe` bloqueado al recompilar (una vez más, y entonces las comprobaciones se hicieron con el binario viejo; se repitieron tras cerrarlo), una rama se creó antes de fusionar la anterior a `main` y hubo que reordenarla y un mensaje de error hablaba del "cuerpo" cuando el fallo era de la query.
 
 **Lección:** el código generado compiló a la primera casi siempre, pero los fallos reales estaban en el comportamiento (códigos HTTP y entornos distintos). Por eso cada endpoint se probó en vivo con `curl` antes de hacer commit, y los tests se ejecutan contra la API real.
