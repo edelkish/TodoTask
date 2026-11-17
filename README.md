@@ -22,7 +22,7 @@ dotnet ef migrations add NombreMigracion --project src/TodoApi --output-dir Data
 
 ### Interfaz visual (Scalar)
 
-Con la API en marcha, abre **`http://localhost:5204/scalar/v1`** (`dotnet run` con el perfil `http` la abre sola). Es una referencia interactiva de los cinco endpoints, con sus parámetros, esquemas y respuestas, y permite ejecutar cada petición con "Test Request". Se genera a partir de la especificación OpenAPI (`http://localhost:5204/openapi/v1.json`).
+Con la API en marcha, abre **`http://localhost:5204/`** en el navegador: redirige automáticamente a **`http://localhost:5204/scalar/v1`** (`dotnet run` no abre el navegador por sí solo desde la terminal). Es una referencia interactiva de los cinco endpoints, con sus parámetros, esquemas y respuestas, y permite ejecutar cada petición con "Test Request". Se genera a partir de la especificación OpenAPI (`http://localhost:5204/openapi/v1.json`).
 
 Ambas rutas solo existen en entorno **Development**; en otros entornos devuelven 404.
 
